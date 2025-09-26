@@ -22,3 +22,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Supabase artifacts
+supabase/.branches
+supabase/.temp
+supabase/.supabase
+supabase/functions/.env
+supabase/.env

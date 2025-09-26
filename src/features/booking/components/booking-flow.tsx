@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -10,16 +10,14 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ErrorText, Form, FormField, FormItem, FormLabel } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import type { AvailabilitySlot } from '@/features/availability/types';
 
+import { useAvailability, useCreateAppointment, useServices } from '../api/hooks';
 import { CalendarGrid } from './calendar-grid';
 import { ConsentCheckbox } from './consent-checkbox';
 import { PhoneInput } from './phone-input';
 import { ServiceList } from './service-list';
-import type { AvailabilitySlot } from '@/features/availability/types';
-
-import { getMockSlotsForService, mockServices } from '../constants';
-
-const DEFAULT_TIMEZONE = 'America/Sao_Paulo';
+import { DEFAULT_TIMEZONE } from '../constants';
 import { bookingDetailsSchema, normalizePhoneNumber, type BookingDetailsInput } from '../schema';
 
 const flowSteps = [
@@ -41,35 +39,37 @@ export function BookingFlow(): JSX.Element {
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
   const [confirmation, setConfirmation] = useState<ConfirmationState | null>(null);
+  const [serverError, setServerError] = useState<string | null>(null);
+
+  const { data: services = [], isLoading: servicesLoading, isError: servicesError } = useServices();
 
   const selectedService = useMemo(
-    () => mockServices.find((service) => service.id === selectedServiceId) ?? null,
-    [selectedServiceId],
+    () => services.find((service) => service.id === selectedServiceId) ?? null,
+    [services, selectedServiceId],
   );
 
-  const slots = useMemo(() => {
-    if (!selectedServiceId) {
-      return [] as AvailabilitySlot[];
+  const [availabilityDate] = useState(() => formatInTimeZone(new Date(), DEFAULT_TIMEZONE, 'yyyy-MM-dd'));
+
+  const {
+    data: availabilitySlots = [],
+    isFetching: availabilityLoading,
+    isError: availabilityError,
+  } = useAvailability({
+    serviceId: selectedServiceId,
+    startDate: availabilityDate,
+    days: 1,
+    timezone: DEFAULT_TIMEZONE,
+  });
+
+  useEffect(() => {
+    if (selectedSlotId && !availabilitySlots.some((slot) => slot.id === selectedSlotId)) {
+      setSelectedSlotId(null);
     }
-    const allSlots = getMockSlotsForService(selectedServiceId, { days: 7 });
-    if (!allSlots.length) {
-      return allSlots;
-    }
-
-    const firstDayKey = formatInTimeZone(new Date(allSlots[0]!.startsAt), DEFAULT_TIMEZONE, 'yyyy-MM-dd');
-
-    return allSlots.filter((slot) =>
-      formatInTimeZone(new Date(slot.startsAt), DEFAULT_TIMEZONE, 'yyyy-MM-dd') === firstDayKey,
-    );
-  }, [selectedServiceId]);
-
-  const scheduleLabel = slots.length
-    ? formatInTimeZone(new Date(slots[0].startsAt), DEFAULT_TIMEZONE, "EEEE, d 'de' MMMM", { locale: ptBR })
-    : null;
+  }, [availabilitySlots, selectedSlotId]);
 
   const selectedSlot = useMemo(
-    () => slots.find((slot) => slot.id === selectedSlotId) ?? null,
-    [slots, selectedSlotId],
+    () => availabilitySlots.find((slot) => slot.id === selectedSlotId) ?? null,
+    [availabilitySlots, selectedSlotId],
   );
 
   const form = useForm<BookingDetailsInput>({
@@ -83,6 +83,14 @@ export function BookingFlow(): JSX.Element {
 
   const customerPhoneValue = form.watch('customerPhone');
   const consentValue = form.watch('consent');
+
+  const scheduleLabel = availabilitySlots.length
+    ? formatInTimeZone(new Date(availabilitySlots[0].startsAt), DEFAULT_TIMEZONE, "EEEE, d 'de' MMMM", { locale: ptBR })
+    : availabilityLoading
+      ? 'Carregando horários...'
+      : 'Agenda indisponível no período selecionado';
+
+  const createAppointment = useCreateAppointment();
 
   const isStepEnabled = (stepIndex: number): boolean => {
     if (stepIndex === 0) return true;
@@ -111,32 +119,39 @@ export function BookingFlow(): JSX.Element {
     setConfirmation(null);
   };
 
-  const onSubmit = form.handleSubmit((values) => {
+  const onSubmit = form.handleSubmit(async (values) => {
     if (!selectedService || !selectedSlot) {
+      setServerError('Selecione um serviço e horário antes de confirmar.');
       return;
     }
 
-    const normalizedPhone = normalizePhoneNumber(values.customerPhone);
+    setServerError(null);
 
-    setConfirmation({
-      serviceName: selectedService.name,
-      startsAt: selectedSlot.startsAt,
-      endsAt: selectedSlot.endsAt,
-      customerName: values.customerName,
-      customerPhone: normalizedPhone,
-    });
+    try {
+      const normalizedPhone = normalizePhoneNumber(values.customerPhone);
+      const appointment = await createAppointment.mutateAsync({
+        serviceId: selectedService.id,
+        startsAt: selectedSlot.startsAt,
+        customerName: values.customerName ?? null,
+        customerPhone: normalizedPhone,
+        consentGranted: true,
+      });
 
-    console.info('Solicitação de agendamento', {
-      serviceId: selectedService.id,
-      slotId: selectedSlot.id,
-      ...values,
-      customerPhone: normalizedPhone,
-    });
+      setConfirmation({
+        serviceName: selectedService.name,
+        startsAt: appointment.startsAt,
+        endsAt: appointment.endsAt,
+        customerName: values.customerName,
+        customerPhone: normalizedPhone,
+      });
 
-    form.reset({ customerName: '', customerPhone: '', consent: false });
-    setSelectedServiceId(null);
-    setSelectedSlotId(null);
-    setCurrentStep(0);
+      form.reset({ customerName: '', customerPhone: '', consent: false });
+      setSelectedServiceId(null);
+      setSelectedSlotId(null);
+      setCurrentStep(0);
+    } catch (error) {
+      setServerError(error instanceof Error ? error.message : 'Não foi possível concluir o agendamento.');
+    }
   });
 
   return (
@@ -190,7 +205,21 @@ export function BookingFlow(): JSX.Element {
             Visualize duração e preço de cada serviço. Você pode alterar a escolha depois.
           </p>
         </div>
-        <ServiceList services={mockServices} selectedServiceId={selectedServiceId ?? undefined} onSelect={handleServiceSelect} />
+        {servicesLoading ? (
+          <div className="rounded-lg border border-dashed border-muted p-6 text-sm text-muted-foreground">
+            Carregando serviços...
+          </div>
+        ) : servicesError ? (
+          <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-6 text-sm text-destructive">
+            Não foi possível carregar os serviços. Tente novamente mais tarde.
+          </div>
+        ) : services.length ? (
+          <ServiceList services={services} selectedServiceId={selectedServiceId ?? undefined} onSelect={handleServiceSelect} />
+        ) : (
+          <div className="rounded-lg border border-dashed border-muted p-6 text-sm text-muted-foreground">
+            Nenhum serviço configurado ainda.
+          </div>
+        )}
       </section>
 
       <section aria-labelledby="step-slot" hidden={currentStep !== 1} className="space-y-4">
@@ -208,7 +237,7 @@ export function BookingFlow(): JSX.Element {
           <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <CalendarIcon className="h-4 w-4" />
-              {scheduleLabel ?? 'Agenda indisponível no período selecionado'}
+              {scheduleLabel}
             </div>
             {selectedService ? (
               <Button variant="ghost" onClick={() => goToStep(0)}>
@@ -217,7 +246,17 @@ export function BookingFlow(): JSX.Element {
             ) : null}
           </CardHeader>
           <CardContent>
-            <CalendarGrid slots={slots} selectedSlotId={selectedSlotId ?? undefined} onSelect={handleSlotSelect} />
+            {availabilityError ? (
+              <div className="rounded border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">
+                Não foi possível carregar os horários. Tente novamente.
+              </div>
+            ) : availabilityLoading ? (
+              <div className="rounded border border-dashed border-muted p-4 text-sm text-muted-foreground">
+                Carregando horários disponíveis...
+              </div>
+            ) : (
+              <CalendarGrid slots={availabilitySlots} selectedSlotId={selectedSlotId ?? undefined} onSelect={handleSlotSelect} />
+            )}
           </CardContent>
         </Card>
       </section>
@@ -295,11 +334,16 @@ export function BookingFlow(): JSX.Element {
               <Button
                 type="submit"
                 className="sm:w-auto"
-                disabled={!selectedService || !selectedSlot || form.formState.isSubmitting}
+                disabled={!selectedService || !selectedSlot || form.formState.isSubmitting || createAppointment.isPending}
               >
-                Confirmar agendamento
+                {createAppointment.isPending ? 'Confirmando...' : 'Confirmar agendamento'}
               </Button>
             </div>
+            {serverError ? (
+              <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+                {serverError}
+              </div>
+            ) : null}
           </Form>
         </FormProvider>
       </section>
@@ -308,10 +352,10 @@ export function BookingFlow(): JSX.Element {
         <Card className="border-emerald-200 bg-emerald-50 text-emerald-900">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Check className="h-5 w-5" /> Agendamento registrado (mock)
+              <Check className="h-5 w-5" /> Agendamento registrado
             </CardTitle>
             <CardDescription className="text-emerald-900/70">
-              Fluxo de confirmação real será conectado às edge functions do Supabase.
+              Enviamos o token público para consulta/cancelamento do agendamento.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-2 text-sm">
