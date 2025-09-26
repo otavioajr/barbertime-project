@@ -43,18 +43,17 @@ Execute `npm run gen:vapid` sempre que precisar de um novo par de chaves. O coma
 ## Status atual
 
 - Vite + React + TypeScript configurados com Tailwind, shadcn/ui tokens e alias `@/`.
-- Router com todas as rotas descritas em `projeto.md` (landing, fluxo de agendamento, página do token e painel admin) utilizando layouts específicos.
-- Providers globais com TanStack Query + Devtools.
-- Utilitários iniciais (`cn`) e modelo base de tipos de domínio.
-- Supabase client e validação de variáveis de ambiente preparados.
+- Router com todas as rotas descritas em `projeto.md` utilizando layouts dedicados.
+- Fluxo de agendamento integrado ao Supabase (serviços, disponibilidade via edge function e criação de agendamento).
+- Edge functions `get-availability`, `create-appointment`, `send-reminder` e `cancel-appointment` com utilitários compartilhados.
+- Painel admin com autenticação magic link e CRUD para serviços, horários de trabalho e férias/fechamentos.
 
 ## Próximos passos
 
-1. Implementar componentes UI (shadcn) e formulários (`ServiceCard`, `CalendarGrid`, `PhoneInput`, etc.).
-2. Modelar schemas Zod e integração real com Supabase (migrations, RLS, edge functions `create-appointment`, `send-reminder`, `cancel-appointment`).
-3. Construir lógica de disponibilidade, incluindo geração de slots com `date-fns-tz`.
-4. Implementar autenticação de admin (Supabase Auth) e proteção de rotas.
-5. Instrumentar notificações push (service worker, subscriptions, camada de abstração).
-6. Adicionar testes (Vitest + React Testing Library) para regras críticas de disponibilidade.
+1. Conectar histórico de agendamentos ao painel admin (listar/cancelar/confirmar) consumindo Supabase.
+2. Instrumentar notificações push reais nas edge functions e adicionar rotina agendada de lembretes.
+3. Criar testes de integração para hooks/admin e suíte das edge functions (Vitest/Deno).
+4. Adicionar seeds/scripts para provisionar dados demo (`npm run supabase:seed`).
+5. Configurar pipeline CI (lint, typecheck, vitest, verificação de migrations).
 
 Mais detalhes e requisitos completos estão registrados em `projeto.md`.

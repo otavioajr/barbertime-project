@@ -1,4 +1,7 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { Navigate, NavLink, Outlet } from 'react-router-dom';
+
+import { getSupabaseClient } from '@/lib/supabase/client';
+import { useSupabaseSession } from '@/lib/supabase/session';
 
 const navItems = [
   { to: '/admin/dashboard', label: 'Dashboard' },
@@ -9,6 +12,25 @@ const navItems = [
 ];
 
 export function AdminLayout(): JSX.Element {
+  const { session, loading } = useSupabaseSession();
+
+  const handleSignOut = async () => {
+    const supabase = getSupabaseClient();
+    await supabase.auth.signOut();
+  };
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background text-sm text-muted-foreground">
+        Verificando sessão...
+      </div>
+    );
+  }
+
+  if (!session) {
+    return <Navigate to="/admin/login" replace />;
+  }
+
   return (
     <div className="grid min-h-screen grid-cols-[240px_1fr] bg-background">
       <aside className="hidden border-r bg-card/30 md:block">
@@ -31,9 +53,10 @@ export function AdminLayout(): JSX.Element {
         <header className="flex h-16 items-center justify-between border-b px-4">
           <h1 className="text-lg font-semibold">BarberTime Admin</h1>
           <div className="flex items-center gap-3 text-sm text-muted-foreground">
-            <span>admin@barbertime.app</span>
+            <span>{session.user.email ?? 'Administrador'}</span>
             <button
               type="button"
+              onClick={handleSignOut}
               className="rounded-md border px-3 py-1.5 text-xs font-semibold text-muted-foreground transition hover:bg-muted"
             >
               Sair
