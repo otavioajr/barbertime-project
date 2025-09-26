@@ -77,18 +77,17 @@ Ao finalizar, encerre os containers locais com `npm run supabase:stop`.
 ## Status atual
 
 - Vite + React + TypeScript configurados com Tailwind, shadcn/ui tokens e alias `@/`.
-- Router com todas as rotas descritas em `projeto.md` (landing, fluxo de agendamento, página do token e painel admin) utilizando layouts específicos.
-- Fluxo de agendamento (3 etapas) operando com validações (Zod + react-hook-form) e componentes personalizados.
-- Integração com Supabase para listar serviços, calcular disponibilidade (edge function `get-availability`) e criar agendamentos via `create-appointment`.
-- Motor de disponibilidade compartilhado entre front-end e edge function, com suporte a férias, colisões, lead time e janela máxima.
-- Supabase configurado: migrations com tabelas/policies e edge functions (`create-appointment`, `send-reminder`, `cancel-appointment`) com validação e integrações iniciais.
+- Router com todas as rotas descritas em `projeto.md` utilizando layouts dedicados.
+- Fluxo de agendamento integrado ao Supabase (serviços, disponibilidade via edge function e criação de agendamento).
+- Edge functions `get-availability`, `create-appointment`, `send-reminder` e `cancel-appointment` com utilitários compartilhados.
+- Painel admin com autenticação magic link e CRUD para serviços, horários de trabalho e férias/fechamentos.
 
 ## Próximos passos
 
-1. Integrar o front-end com o Supabase real (queries/mutações usando TanStack Query + edge functions).
-2. Implementar painel admin completo (CRUDs, proteções de rota e Supabase Auth com magic link).
-3. Conectar notificações push (Web Push) às funções `send-reminder`/`create-appointment` e preparar gatilhos de cron.
-4. Expandir cobertura de testes (React Testing Library + Vitest) e adicionar testes end-to-end das funções.
-5. Criar scripts de seed/dados de exemplo para desenvolvimento local e ajustes finos das policies.
+1. Conectar histórico de agendamentos ao painel admin (listar/cancelar/confirmar) consumindo Supabase.
+2. Instrumentar notificações push reais nas edge functions e adicionar rotina agendada de lembretes.
+3. Criar testes de integração para hooks/admin e suíte das edge functions (Vitest/Deno).
+4. Adicionar seeds/scripts para provisionar dados demo (`npm run supabase:seed`).
+5. Configurar pipeline CI (lint, typecheck, vitest, verificação de migrations).
 
 Mais detalhes e requisitos completos estão registrados em `projeto.md`.

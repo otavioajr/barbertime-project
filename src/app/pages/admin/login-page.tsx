@@ -72,7 +72,7 @@ export function AdminLoginPage(): JSX.Element {
 
         <div className="space-y-2 text-sm text-muted-foreground">
           <p>
-            Para desenvolvimento local, adicione o e-mail desejado em `profiles` com `is_admin = true` após executar as migrations.
+            Para desenvolvimento local, adicione o e-mail desejado na tabela `profiles` com `is_admin = true` após executar as migrations.
           </p>
           {message ? (
             <p className={status === 'sent' ? 'text-emerald-600' : 'text-destructive'}>{message}</p>
