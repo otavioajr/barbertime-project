@@ -27,6 +27,8 @@ Scripts úteis:
 - `npm run supabase:start` – inicializa o stack local do Supabase (requer Supabase CLI).
 - `npm run supabase:db:migrate` – aplica as migrations do diretório `supabase/migrations`.
 - `npm run supabase:functions:serve` – sobe as edge functions localmente (carrega variáveis de `supabase/.env`).
+- `npm run supabase:seed` – reseta o banco local e aplica `supabase/seed.sql`.
+- `npm run supabase:lint` – executa o lint de schema do Supabase.
 - `npm run supabase:stop` – encerra os containers locais do Supabase.
 
 ## Notificações push
@@ -38,7 +40,7 @@ Execute `npm run gen:vapid` sempre que precisar de um novo par de chaves. O coma
 ## Supabase (local)
 
 1. Instale a [Supabase CLI](https://supabase.com/docs/guides/cli) e faça login (`supabase login`).
-2. Copie `supabase/.env.example` para `supabase/.env` preenchendo `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_URL` e `VAPID_PRIVATE_KEY` quando necessário.
+2. Copie `supabase/.env.example` para `supabase/.env` preenchendo `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_URL`, `VAPID_PUBLIC_KEY` e `VAPID_PRIVATE_KEY` quando necessário.
 3. Inicialize o stack local:
    ```bash
    npm run supabase:start
@@ -50,6 +52,11 @@ Execute `npm run gen:vapid` sempre que precisar de um novo par de chaves. O coma
 5. Para desenvolver/depurar edge functions:
    ```bash
    npm run supabase:functions:serve
+   ```
+
+6. Para popular dados de exemplo (serviços, horários, férias e admin):
+   ```bash
+   npm run supabase:seed
    ```
 
 Ao finalizar, encerre os containers locais com `npm run supabase:stop`.
@@ -69,7 +76,6 @@ Ao finalizar, encerre os containers locais com `npm run supabase:stop`.
 - `src/styles/global.css` – tema base usando Tailwind + tokens shadcn/ui.
 - `src/workers/service-worker.ts` – service worker placeholder para notificações push.
 - `supabase/migrations` – schema SQL e políticas de RLS.
-- `supabase/functions` – edge functions (`create-appointment`, `send-reminder`, `cancel-appointment`).
 - `supabase/functions` – edge functions (`get-availability`, `create-appointment`, `send-reminder`, `cancel-appointment`).
 - `supabase/types.ts` – tipagem gerada manualmente para o schema (compartilhada entre app e funções).
 - `docs/supabase-policy-checklist.md` – roteiro rápido para validar RLS/índices em releases.
@@ -80,7 +86,8 @@ Ao finalizar, encerre os containers locais com `npm run supabase:stop`.
 - Router com todas as rotas descritas em `projeto.md` utilizando layouts dedicados.
 - Fluxo de agendamento integrado ao Supabase (serviços, disponibilidade via edge function e criação de agendamento).
 - Edge functions `get-availability`, `create-appointment`, `send-reminder` e `cancel-appointment` com utilitários compartilhados.
-- Painel admin com autenticação magic link e CRUD para serviços, horários de trabalho e férias/fechamentos.
+- Painel admin com autenticação magic link, CRUD para serviços/horários/férias e dashboard de agendamentos com filtros/ações.
+- Notificações push enviadas via edge functions (`create-appointment`, `send-reminder`) utilizando VAPID.
 
 ## Próximos passos
 

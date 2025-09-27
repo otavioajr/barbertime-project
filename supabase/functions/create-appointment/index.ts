@@ -5,6 +5,7 @@ import { parsePhoneNumberFromString } from 'npm:libphonenumber-js@1.12.22';
 import { z } from 'npm:zod@3.23.8';
 
 import { generateSlots, findSlot } from '../_shared/availability.ts';
+import { broadcastNotification } from '../_shared/push.ts';
 import { getServiceClient } from '../_shared/supabase-client.ts';
 import type { Database } from '../../types.ts';
 
@@ -83,7 +84,7 @@ async function fetchService(serviceId: string) {
   return data;
 }
 
-async function fetchContext(rangeStart: Date, rangeEnd: Date) {
+async function fetchContext(rangeStart: Date, rangeEnd: Date, serviceId: string) {
   const client = getServiceClient();
 
   const [workHoursRes, vacationsRes, appointmentsRes] = await Promise.all([
@@ -101,6 +102,7 @@ async function fetchContext(rangeStart: Date, rangeEnd: Date) {
     client
       .from('appointments')
       .select('*')
+      .eq('service_id', serviceId)
       .in('status', BLOCKING_STATUSES)
       .gte('starts_at', rangeStart.toISOString())
       .lte('starts_at', rangeEnd.toISOString())
@@ -197,7 +199,7 @@ serve(async (request) => {
     const appointmentDate = formatInTimeZone(startsAt, DEFAULT_TIMEZONE, 'yyyy-MM-dd');
     const rangeStart = zonedTimeToUtc(`${appointmentDate}T00:00:00.000`, DEFAULT_TIMEZONE);
     const rangeEnd = zonedTimeToUtc(`${appointmentDate}T23:59:59.999`, DEFAULT_TIMEZONE);
-    const { workHours, vacations, appointments } = await fetchContext(rangeStart, rangeEnd);
+    const { workHours, vacations, appointments } = await fetchContext(rangeStart, rangeEnd, service.id);
 
     const slots = generateSlots({
       service,
@@ -224,6 +226,13 @@ serve(async (request) => {
 
     const appointment = await insertAppointment(payload, service, startsAt.toISOString(), endsAt, normalizedPhone);
     await persistSubscription(appointment.public_token, payload, normalizedPhone);
+
+    const formattedDate = formatInTimeZone(startsAt, DEFAULT_TIMEZONE, "dd/MM/yyyy 'às' HH:mm");
+    await broadcastNotification(appointment.public_token, normalizedPhone, {
+      title: 'Agendamento recebido',
+      body: `${service.name} em ${formattedDate}`,
+      url: `/agendamento/${appointment.public_token}`,
+    });
 
     return jsonResponse(201, {
       ok: true,

@@ -21,6 +21,7 @@ export interface Database {
           public_token: string;
           reminder_sent: boolean;
           created_at: string;
+          services?: { name: string } | null;
         };
         Insert: {
           id?: string;

@@ -1,7 +1,9 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { addHours, isWithinInterval } from 'npm:date-fns@4.1.0';
+import { formatInTimeZone } from 'npm:date-fns-tz@3.2.0';
 import { z } from 'npm:zod@3.23.8';
 
+import { broadcastNotification } from '../_shared/push.ts';
 import { getServiceClient } from '../_shared/supabase-client.ts';
 import type { Database } from '../../types.ts';
 
@@ -15,6 +17,11 @@ const payloadSchema = z.object({
 type Payload = z.infer<typeof payloadSchema>;
 
 const SUPPORTED_STATUSES: Array<Database['public']['Enums']['appointment_status']> = ['scheduled', 'confirmed'];
+const DEFAULT_TIMEZONE = 'America/Sao_Paulo';
+
+type ReminderAppointment = Database['public']['Tables']['appointments']['Row'] & {
+  services?: { name: string } | null;
+};
 
 function jsonResponse(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), {
@@ -29,7 +36,7 @@ async function fetchAppointments(payload: Payload) {
   const client = getServiceClient();
   const query = client
     .from('appointments')
-    .select('id, starts_at, ends_at, status, public_token, customer_phone')
+    .select('id, starts_at, ends_at, status, public_token, customer_phone, services(name)')
     .in('status', SUPPORTED_STATUSES)
     .eq('reminder_sent', false);
 
@@ -44,7 +51,7 @@ async function fetchAppointments(payload: Payload) {
     query.lte('starts_at', payload.windowEnd);
   }
 
-  const { data, error } = await query.returns<Database['public']['Tables']['appointments']['Row'][] | null>();
+  const { data, error } = await query.returns<ReminderAppointment[] | null>();
   if (error) {
     throw new Response(
       JSON.stringify({ message: 'Erro ao buscar agendamentos para lembrete.', details: error.message }),
@@ -91,9 +98,13 @@ serve(async (request) => {
       }),
     );
 
-    // TODO: integrate with Web Push or external providers.
     for (const appointment of toNotify) {
-      console.info('[send-reminder] would notify appointment', appointment.id, appointment.starts_at);
+      const formattedDate = formatInTimeZone(new Date(appointment.starts_at), DEFAULT_TIMEZONE, "dd/MM/yyyy 'às' HH:mm");
+      await broadcastNotification(appointment.public_token, appointment.customer_phone, {
+        title: 'Lembrete de agendamento',
+        body: `${appointment.services?.name ?? 'Seu horário'} em ${formattedDate}`,
+        url: `/agendamento/${appointment.public_token}`,
+      });
     }
 
     await markReminderSent(toNotify.map((item) => item.id));

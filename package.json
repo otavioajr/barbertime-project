@@ -15,7 +15,9 @@
     "supabase:start": "supabase start",
     "supabase:stop": "supabase stop",
     "supabase:db:migrate": "supabase migration up",
-    "supabase:functions:serve": "supabase functions serve --env-file ./supabase/.env"
+    "supabase:functions:serve": "supabase functions serve --env-file ./supabase/.env",
+    "supabase:seed": "supabase db reset --seed",
+    "supabase:lint": "supabase db lint"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
