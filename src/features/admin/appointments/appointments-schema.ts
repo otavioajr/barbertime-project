@@ -1,10 +1,15 @@
 import { z } from 'zod';
 
+const dateFilterSchema = z.preprocess(
+  (value) => (value === '' ? undefined : value),
+  z.string().date().optional(),
+);
+
 export const appointmentFilterSchema = z.object({
   status: z.enum(['all', 'scheduled', 'confirmed', 'canceled', 'completed']).default('all'),
   search: z.string().trim().optional(),
-  from: z.string().date().optional(),
-  to: z.string().date().optional(),
+  from: dateFilterSchema,
+  to: dateFilterSchema,
 });
 
 export type AppointmentFilterValues = z.infer<typeof appointmentFilterSchema>;
