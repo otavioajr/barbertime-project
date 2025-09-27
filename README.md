@@ -43,18 +43,17 @@ Execute `npm run gen:vapid` sempre que precisar de um novo par de chaves. O coma
 ## Status atual
 
 - Vite + React + TypeScript configurados com Tailwind, shadcn/ui tokens e alias `@/`.
-- Router com todas as rotas descritas em `projeto.md` (landing, fluxo de agendamento, página do token e painel admin) utilizando layouts específicos.
-- Providers globais com TanStack Query + Devtools.
-- Utilitários iniciais (`cn`) e modelo base de tipos de domínio.
-- Supabase client e validação de variáveis de ambiente preparados.
+- Router completo (landing, fluxo de agendamento, página do token e painel admin) com layouts dedicados.
+- Fluxo de agendamento integrado ao Supabase: serviços, disponibilidade (edge `get-availability`) e criação via `create-appointment`.
+- Edge functions para disponibilidade, criação, lembrete e cancelamento de agendamentos compartilhando utilitários.
+- Painel admin com autenticação magic link, CRUD de serviços/horários/férias e gerenciamento de agendamentos (filtros + ações).
 
 ## Próximos passos
 
-1. Implementar componentes UI (shadcn) e formulários (`ServiceCard`, `CalendarGrid`, `PhoneInput`, etc.).
-2. Modelar schemas Zod e integração real com Supabase (migrations, RLS, edge functions `create-appointment`, `send-reminder`, `cancel-appointment`).
-3. Construir lógica de disponibilidade, incluindo geração de slots com `date-fns-tz`.
-4. Implementar autenticação de admin (Supabase Auth) e proteção de rotas.
-5. Instrumentar notificações push (service worker, subscriptions, camada de abstração).
-6. Adicionar testes (Vitest + React Testing Library) para regras críticas de disponibilidade.
+1. Conectar histórico de agendamentos ao painel admin (listagem/ações completadas) consumindo Supabase em tempo real.
+2. Instrumentar notificações push reais nas edge functions e automatizar lembretes periódicos.
+3. Criar seeds/scripts para provisionar dados demo (`npm run supabase:seed`).
+4. Configurar pipeline CI (lint, typecheck, vitest, validação de migrations).
+5. Adicionar testes de integração para hooks/admin e suíte dedicada às edge functions.
 
 Mais detalhes e requisitos completos estão registrados em `projeto.md`.

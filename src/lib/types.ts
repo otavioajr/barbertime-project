@@ -36,6 +36,7 @@ export type Appointment = {
   status: AppointmentStatus;
   publicToken: string;
   createdAt: string;
+  serviceName?: string | null;
 };
 
 export type PushSubscription = {
